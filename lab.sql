@@ -5,48 +5,55 @@ CREATE DATABASE lab_db;
 
 BEGIN;
 
--- БАНК
-CREATE TABLE bank (
+
+-- ИНФОРМАЦИЯ О КЛИЕНТЕ
+CREATE TABLE client_info_ind (
+	id SERIAL PRIMARY KEY,
+	inn CHAR(12) CHECK (inn ~ '^[0-9]{12}$'),
+	passport CHAR(10) CHECK (passport ~ '^[0-9]{10}$')
+);
+
+CREATE TABLE client_info_ent (
+	id SERIAL PRIMARY KEY,
+	inn CHAR(12) CHECK (inn ~ '^[0-9]{12}$'),
+	ogrnip CHAR(15) CHECK (ogrnip ~ '^[0-9]{15}$')
+);
+
+CREATE TABLE client_info_leg (
+	id SERIAL PRIMARY KEY,
+	inn CHAR(10) CHECK (inn ~ '^[0-9]{10}$'),
+	ogrn CHAR(13) CHECK (ogrn ~ '^[0-9]{13}$'),
+	responsible_person VARCHAR(100) NOT NULL
+);
+
+
+-- ТИП КЛИЕНТА
+CREATE TABLE client_type (
+	id SERIAL PRIMARY KEY,
+	type CHAR(3) UNIQUE NOT NULL
+);
+
+INSERT INTO client_type (type) VALUES
+	('IND'),
+	('ENT'),
+	('LEG');
+
+
+-- КЛИЕНТ
+CREATE TABLE client (
 	id SERIAL PRIMARY KEY,
 	name VARCHAR(100) NOT NULL,
-	address VARCHAR(100) NOT NULL,
-	bik CHAR(9) CHECK (bik ~ '^[0-9]{9}$'),
-	correspondent_account CHAR(20) CHECK (correspondent_account ~ '^[0-9]{20}$')
+	created_at DATE NOT NULL DEFAULT current_date,
+	client_type_fk INT REFERENCES client_type NOT NULL,
+	client_info_ind_fk INT REFERENCES client_info_ind,
+	client_info_ent_fk INT REFERENCES client_info_ent,
+	client_info_leg_fk INT REFERENCES client_info_leg
 );
 
-INSERT INTO bank (id, name, address, bik, correspondent_account) VALUES
-	(1, 'ЖЕЛТЫЙ БАНК', 'МОСКВА', '100000000', '10000000000000000000'),
-	(2, 'ЗЕЛЕНЫЙ БАНК', 'ПИТЕР', '200000000', '20000000000000000000'),
-	(3, 'СИНИЙ БАНК', 'ЕКБ', '300000000', '30000000000000000000'),
-	(4, 'КРАСНЫЙ БАНК', 'КАЗАНЬ', '400000000', '40000000000000000000');
-
-
-
--- БАНКОВСКИЙ СЧЕТ
-CREATE TABLE bank_account (
-	id SERIAL PRIMARY KEY,
-	number CHAR(20) CHECK (number ~ '^[0-9]{20}$'),
-	bank_fk INT REFERENCES bank NOT NULL
-);
-
-INSERT INTO bank_account (id, number, bank_fk) VALUES
-	(1, '10000000000000000001', 1),
-	(2, '10000000000000000002', 1),
-	(3, '10000000000000000003', 1),
-	(4, '10000000000000000004', 1),
-	(5, '20000000000000000001', 2),
-	(6, '20000000000000000002', 2),
-	(7, '20000000000000000003', 2),
-	(8, '20000000000000000004', 2),
-	(9, '30000000000000000001', 3),
-	(10, '30000000000000000002', 3),
-	(11, '30000000000000000003', 3),
-	(12, '30000000000000000004', 3),
-	(13, '40000000000000000001', 4),
-	(14, '40000000000000000002', 4),
-	(15, '40000000000000000003', 4),
-	(16, '40000000000000000004', 4);
-
+INSERT INTO client (id, name, client_type_fk) VALUES -- тут добавить потом фк на информацию о клиенте
+	(1, 'Lolov Lol Lolovish', 1),
+	(2, 'Kekov Kek Kekovich', 2),
+	(3, 'Chillov Chill Chillovich', 3);
 
 
 -- ТИП РАБОТНИКА
@@ -73,72 +80,63 @@ CREATE TABLE employee (
 	employment_date DATE NOT NULL,
 	dismissal_date DATE,
 	salary INT NOT NULL,
-	employee_role_fk  INT REFERENCES employee_role NOT NULL,
-	bank_account_fk INT REFERENCES bank_account NOT NULL
+	employee_role_fk  INT REFERENCES employee_role NOT NULL
 );
 
-INSERT INTO employee (id, name, inn, birth_date, sex, employment_date, salary, employee_role_fk, bank_account_fk) VALUES
-	(1, 'Vasya', '100000000000', '2000-01-01', 'M', '2018-01-01', '100000', 1, 1),
-	(2, 'Misha', '200000000000', '2000-01-02', 'M', '2018-01-02', '200000', 2, 2),
-	(3, 'Stas', '300000000000', '2000-01-03', 'M', '2018-01-03', '300000', 3, 3),
-	(4, 'Anna', '400000000000', '2000-01-04', 'F', '2018-01-04', '400000', 4, 4),
-	(5, 'Lyosha', '500000000000', '2000-01-05', 'M', '2018-01-05', '500000', 1, 5),
-	(6, 'Lika', '600000000000', '2000-01-06', 'F', '2018-01-06', '600000', 2, 6),
-	(7, 'Dima', '700000000000', '2000-01-07', 'M', '2018-01-07', '700000', 3, 7),
-	(8, 'Rita', '800000000000', '2000-01-08', 'F', '2018-01-08', '800000', 4, 8);
+INSERT INTO employee (id, name, inn, birth_date, sex, employment_date, salary, employee_role_fk) VALUES
+	(1, 'Vasya', '100000000000', '2000-01-01', 'M', '2018-01-01', '100000', 1),
+	(2, 'Misha', '200000000000', '2000-01-02', 'M', '2018-01-02', '200000', 2),
+	(3, 'Stas', '300000000000', '2000-01-03', 'M', '2018-01-03', '300000', 3),
+	(4, 'Anna', '400000000000', '2000-01-04', 'F', '2018-01-04', '400000', 4),
+	(5, 'Lyosha', '500000000000', '2000-01-05', 'M', '2018-01-05', '500000', 1),
+	(6, 'Lika', '600000000000', '2000-01-06', 'F', '2018-01-06', '600000', 2),
+	(7, 'Dima', '700000000000', '2000-01-07', 'M', '2018-01-07', '700000', 3),
+	(8, 'Rita', '800000000000', '2000-01-08', 'F', '2018-01-08', '800000', 4);
 
 
--- ИНФОРМАЦИЯ О КЛИЕНТЕ
-CREATE TABLE client_info_ind (
+
+-- БАНК
+CREATE TABLE bank (
 	id SERIAL PRIMARY KEY,
 	name VARCHAR(100) NOT NULL,
-	inn CHAR(12) CHECK (inn ~ '^[0-9]{12}$'),
-	passport CHAR(10) CHECK (passport ~ '^[0-9]{10}$')
+	address VARCHAR(100) NOT NULL,
+	bik CHAR(9) CHECK (bik ~ '^[0-9]{9}$'),
+	correspondent_account CHAR(20) CHECK (correspondent_account ~ '^[0-9]{20}$')
 );
 
-CREATE TABLE client_info_ent (
+INSERT INTO bank (id, name, address, bik, correspondent_account) VALUES
+	(1, 'ЖЕЛТЫЙ БАНК', 'МОСКВА', '100000000', '10000000000000000000'),
+	(2, 'ЗЕЛЕНЫЙ БАНК', 'ПИТЕР', '200000000', '20000000000000000000'),
+	(3, 'СИНИЙ БАНК', 'ЕКБ', '300000000', '30000000000000000000'),
+	(4, 'КРАСНЫЙ БАНК', 'КАЗАНЬ', '400000000', '40000000000000000000');
+
+
+-- БАНКОВСКИЙ СЧЕТ
+CREATE TABLE bank_account (
 	id SERIAL PRIMARY KEY,
-	name VARCHAR(100) NOT NULL,
-	inn CHAR(12) CHECK (inn ~ '^[0-9]{12}$'),
-	ogrnip CHAR(15) CHECK (ogrnip ~ '^[0-9]{15}$')
+	number CHAR(20) CHECK (number ~ '^[0-9]{20}$'),
+	bank_fk INT REFERENCES bank NOT NULL,
+	client_fk INT REFERENCES client,
+	employee_fk INT REFERENCES employee
 );
 
-CREATE TABLE client_info_leg (
-	id SERIAL PRIMARY KEY,
-	name VARCHAR(100) NOT NULL,
-	inn CHAR(10) CHECK (inn ~ '^[0-9]{10}$'),
-	ogrn CHAR(13) CHECK (ogrn ~ '^[0-9]{13}$'),
-	responsible_person VARCHAR(100) NOT NULL
-);
+INSERT INTO bank_account (id, number, bank_fk, client_fk) VALUES
+	(1, '10000000000000000101', 1, 1),
+	(2, '10000000000000000201', 2, 2),
+	(3, '10000000000000000202', 3, 2),
+	(12, '10000000000000000301', 4, 3),
+	(13, '10000000000000000302', 1, 3),
+	(14, '10000000000000000303', 2, 3);
 
-
--- ТИП КЛИЕНТА
-CREATE TABLE client_type (
-	id SERIAL PRIMARY KEY,
-	type CHAR(3) UNIQUE NOT NULL
-);
-
-INSERT INTO client_type (type) VALUES
-	('IND'),
-	('ENT'),
-	('LEG');
-
-
-
--- КЛИЕНТ
-CREATE TABLE client (
-	id SERIAL PRIMARY KEY,
-	client_type_fk INT REFERENCES client_type NOT NULL,
-	client_info_ind_fk INT REFERENCES client_info_ind,
-	client_info_ent_fk INT REFERENCES client_info_ent,
-	client_info_leg_fk INT REFERENCES client_info_leg,
-	bank_account_fk INT REFERENCES bank_account NOT NULL
-);
-
-INSERT INTO client (id, client_type_fk, bank_account_fk) VALUES -- тут добавить потом фк на информацию о клиенте
-	(1, 1, 9),
-	(2, 2, 10),
-	(3, 3, 11);
+INSERT INTO bank_account (id, number, bank_fk, employee_fk) VALUES
+	(4, '10000000000000000004', 1, 1),
+	(5, '10000000000000000005', 2, 2),
+	(6, '10000000000000000006', 3, 3),
+	(7, '10000000000000000007', 4, 4),
+	(8, '10000000000000000008', 1, 5),
+	(9, '10000000000000000009', 2, 6),
+	(10, '10000000000000000010', 3, 7),
+	(11, '10000000000000000011', 4, 8);
 
 
 
@@ -149,8 +147,6 @@ CREATE TABLE salary_payment (
 	date DATE NOT NULL,
 	employee_fk INT REFERENCES employee NOT NULL
 );
-
-
 
 
 -- УСЛУГА
@@ -175,7 +171,7 @@ INSERT INTO service (id, name) VALUES
 CREATE TABLE price_list (
 	id SERIAL PRIMARY KEY,
 	client_type_fk INT REFERENCES client_type NOT NULL,
-	created_date DATE NOT NULL,
+	created_date DATE NOT NULL DEFAULT current_date,
 	admin_fk INT REFERENCES employee NOT NULL,
 	base_price INT NOT NULL -- правка 2: теперь базовая цена в прайслисте, а не в типе клиента: DONE
 );
@@ -187,6 +183,7 @@ INSERT INTO price_list (id, client_type_fk, created_date, admin_fk, base_price) 
 	(4, 1, '2023-02-01', 1, 5000),
 	(5, 2, '2023-02-01', 1, 20000),
 	(6, 3, '2023-02-01', 1, 100000);
+SELECT setval('price_list_id_seq', 6);
 
 
 -- СВЯЗЬ: УСЛУГА - ПРАЙС ЛИСТ
@@ -275,6 +272,425 @@ CREATE TABLE contract_payment_sum (
 );
 
 COMMIT;
+
+
+-- ммм ЗАПРОСЫ ммм ЗАПРОСЫ мм ЗАПРОСЫ м  м м м ЗАПРОСЫ ммммм ЗАПРОСЫ ЗАПРОСЫ ЗАПРОСЫ мм ЗАПРОСЫ м ЗАПРОСЫ м м м ЗАПРОСЫ ми м 
+
+
+BEGIN;
+
+INSERT INTO main_contract (lawyer_fk, manager_fk, client_fk, price_list_fk, from_date, to_date, text) VALUES
+	(3, 2, 1, 1, '2023-01-10', '2023-02-10', 'КУПИЛ МУЖИК ШЛЯПУ 1 1'),
+	(3, 2, 1, 1, '2023-03-10', '2023-04-10', 'КУПИЛ МУЖИК ШЛЯПУ 1 2'),
+	(3, 2, 1, 1, '2023-05-10', '2023-06-10', 'КУПИЛ МУЖИК ШЛЯПУ 1 3'),
+	(3, 2, 1, 1, '2023-07-10', '2023-08-10', 'КУПИЛ МУЖИК ШЛЯПУ 1 4'),
+	(3, 2, 1, 1, '2023-09-10', '2023-10-10', 'КУПИЛ МУЖИК ШЛЯПУ 1 5'),
+	(3, 2, 2, 1, '2023-01-10', '2023-02-10', 'КУПИЛ МУЖИК ШЛЯПУ 2 1'),
+	(3, 2, 2, 1, '2023-03-10', '2023-04-10', 'КУПИЛ МУЖИК ШЛЯПУ 2 2'),
+	(3, 2, 2, 1, '2023-05-10', '2023-06-10', 'КУПИЛ МУЖИК ШЛЯПУ 2 3');
+
+INSERT INTO service_contract (main_contract_fk, service_fk, price_list_fk, created_date) VALUES
+	(1, 1, 1, '2023-01-11'),
+	(2, 2, 1, '2023-01-12'),
+	(2, 3, 1, '2023-01-13'),
+	(3, 1, 1, '2023-01-14'),
+	(3, 2, 1, '2023-01-15'),
+	(3, 3, 1, '2023-01-16'),
+	(4, 1, 1, '2023-01-17'),
+	(4, 2, 1, '2023-01-18'),
+	(4, 3, 1, '2023-01-19'),
+	(4, 1, 1, '2023-01-20'),
+	(5, 2, 1, '2023-01-21'),
+	(5, 3, 1, '2023-01-22'),
+	(5, 1, 1, '2023-01-23'),
+	(5, 1, 1, '2023-01-24'),
+	(5, 1, 1, '2023-01-25'),
+	-- (6, 1, 1, '2023-01-26'),
+	(7, 1, 1, '2023-01-27'),
+	(7, 2, 1, '2023-01-28'),
+	(8, 3, 1, '2023-01-29'),
+	(8, 2, 1, '2023-01-30'),
+	(8, 2, 1, '2023-01-31');
+
+
+
+-- еще нужен челик с основным договором но без услуг
+-- вынести общую часть в WITH
+-- нет спика, тк счет один из условия. Мб менять условие?
+
+
+
+-- ЗАПРОС 1:
+--
+-- Получить статистику по пользователям. Отчет представить в виде:
+--
+-- ФИО пользователя, id, дата регистрации, число договоров, общее число услуг,
+-- среднее число услуг по договору, дата последнего договора,
+-- название самой популярной услуги, список счетов пользователя через запятую.
+
+SELECT
+	client.name,
+	client.id,
+	client.created_at,
+	COUNT(DISTINCT main_contract.id) as "count of main_contract",
+	COUNT(service_contract.id) as "count of services",
+	(
+		SELECT
+			COALESCE(AVG(service_count_per_main_contract.cnt), 0)
+		FROM (
+			SELECT
+				main_contract.id,
+				COALESCE(COUNT(service_contract.id), 0) as "cnt"
+			FROM main_contract
+			LEFT JOIN service_contract ON service_contract.main_contract_fk = main_contract.id
+			WHERE main_contract.client_fk = client.id
+			GROUP BY main_contract.id
+		) as service_count_per_main_contract
+	) as "avg count of services",
+	MAX(service_contract.created_date) as "date of the latest service_contract",
+	(
+		SELECT
+			service.name
+		FROM service
+		WHERE
+			service.id = (
+				SELECT
+					mode() WITHIN GROUP (ORDER BY service_contract.service_fk)
+				FROM main_contract
+				LEFT JOIN service_contract ON service_contract.main_contract_fk = main_contract.id
+				WHERE
+					main_contract.client_fk = client.id
+			)
+	) as "name of the most popular service",
+	string_agg(DISTINCT bank_account.number, ', ') as "list of bank accounts"
+FROM client
+LEFT JOIN main_contract ON main_contract.client_fk = client.id
+LEFT JOIN service_contract ON service_contract.main_contract_fk = main_contract.id
+LEFT JOIN bank_account ON bank_account.client_fk = client.id
+GROUP BY client.id;
+
+
+
+
+
+
+-- ЗАПРОС 6:
+
+-- ЗАПРОС 7:
+
+-- ЗАПРОС 8:
+
+-- ЗАПРОС 9:
+
+END;
+
+
+
+
+\q
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BEGIN;
+
+-- ПРОЦЕДУРА 1:
+-- создание платежек для зарплат и авансов
+CREATE PROCEDURE pay_salary(pre BOOL DEFAULT true)
+LANGUAGE plpgsql AS 
+$pay_salary$
+	DECLARE
+		now_date DATE;
+		salary_date DATE;
+		january_1 DATE;
+		january_14 DATE;
+	BEGIN
+		now_date := (
+			SELECT current_date
+		);
+		-- ДЛЯ ТЕСТА ВЫХОДНЫХ ДНЕЙ И ЯНВАРСКИХ ПРАЗДНИКОВ
+		-- now_date := date_trunc('year', now_date) + interval '1 month 7 days';
+
+		IF pre = True THEN
+			salary_date := (
+				SELECT date_trunc('month', now_date) + interval '24 days'
+			);
+		ELSE
+	 		salary_date := (
+	 			SELECT date_trunc('month', now_date) - interval '1 month' + interval '9 days'
+	 		);
+		END IF;
+
+		january_1 := (
+			SELECT date_trunc('year', now_date)
+		);
+		january_14 := january_1 + interval '13 days';
+		WHILE (
+			EXTRACT(DOW FROM salary_date) IN (0, 6) OR (salary_date >= january_1 AND salary_date <= january_14)
+		) LOOP
+			salary_date := salary_date - interval '1 day';
+		END LOOP;
+		RAISE NOTICE 'Choosen date: %', salary_date;
+
+
+		IF EXISTS ( 
+			SELECT * FROM salary_payment WHERE salary_payment.date = salary_date LIMIT 1 
+		) THEN
+			RAISE WARNING 'Found existing salary payments';
+			RETURN;
+		END IF;
+
+
+		INSERT INTO salary_payment(sum, date, employee_fk)
+		SELECT employee.salary * 0.5, salary_date, employee.id
+		FROM employee
+		WHERE dismissal_date IS NULL OR dismissal_date > now_date;
+
+
+		RAISE NOTICE 'Total: %', (
+			SELECT sum(salary_payment.sum) FROM salary_payment WHERE salary_payment.date = salary_date
+		);
+	END;
+$pay_salary$;
+
+COMMIT;
+
+
+
+
+-- ТЕСТ ПРОЦЕДУРЫ 1
+BEGIN;
+\echo 'OK, pre=true'
+CALL pay_salary(true);
+SELECT * FROM employee;
+SELECT * FROM salary_payment;
+ROLLBACK;
+
+
+BEGIN;
+\echo 'OK, pre=false'
+CALL pay_salary(false);
+SELECT * FROM employee;
+SELECT * FROM salary_payment;
+ROLLBACK;
+
+BEGIN;
+\echo 'OK, dissmissal date'
+INSERT INTO employee (id, name, inn, birth_date, sex, employment_date, salary, employee_role_fk, bank_account_fk, dismissal_date) VALUES
+	(9, 'Duke', '900000000000', '2000-01-09', 'M', '2018-01-09', '900000', 1, 9, '2019-01-09');
+CALL pay_salary(true);
+SELECT * FROM employee;
+SELECT * FROM salary_payment;
+ROLLBACK;
+
+
+BEGIN;
+\echo 'ERROR, salary payment exists'
+INSERT INTO salary_payment(sum, date, employee_fk) SELECT '1', date_trunc('month', current_date) + interval '24 days', 1;
+CALL pay_salary(true);
+SELECT * FROM employee;
+SELECT * FROM salary_payment;
+ROLLBACK;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BEGIN;
+
+-- ПРОЦЕДУРА 2:
+CREATE PROCEDURE new_price_list_from_existing(price_list_id INT, percent INT)
+LANGUAGE plpgsql AS 
+$new_price_list_from_existing$
+	DECLARE
+		old_price_list RECORD;
+		old_price_list_service RECORD;
+		new_base_price INT;
+		new_service_price INT;
+		new_price_list_id INT;
+	BEGIN
+		SELECT * INTO old_price_list FROM price_list WHERE id = price_list_id;
+
+		IF NOT FOUND THEN
+			RAISE WARNING 'Pricelist not found';
+			RETURN;
+		END IF;
+		IF percent <= -100 THEN
+			RAISE WARNING 'percent value must be greater then -100';
+			RETURN;
+		END IF;
+
+		new_base_price := old_price_list.base_price + CAST((old_price_list.base_price * (percent::float / 100)) AS INT);
+		RAISE NOTICE 'new_base_price: %', new_base_price;
+		INSERT INTO price_list (client_type_fk, admin_fk, base_price) VALUES
+			(old_price_list.client_type_fk, old_price_list.admin_fk, new_base_price)
+			RETURNING id INTO new_price_list_id;
+
+		FOR old_price_list_service IN (
+			SELECT * FROM price_list_service WHERE price_list_fk = old_price_list.id
+		)
+		LOOP
+			new_service_price := old_price_list_service.price + CAST((old_price_list_service.price * (percent::float / 100)) AS INT);
+			RAISE NOTICE 'new_service_price: %', new_service_price;
+			INSERT INTO price_list_service (price_list_fk, service_fk, price) VALUES
+				(new_price_list_id, old_price_list_service.service_fk, new_service_price);
+		END LOOP;
+	END;
+$new_price_list_from_existing$;
+
+COMMIT;
+
+
+
+
+
+-- ТЕСТ ПРОЦЕДУРы 2
+
+BEGIN;
+\echo 'ERROR, price_list not found'
+CALL new_price_list_from_existing(101, 0);
+ROLLBACK;
+
+
+BEGIN;
+\echo 'ERROR, percent <= -100'
+CALL new_price_list_from_existing(1, -100);
+CALL new_price_list_from_existing(1, -101);
+ROLLBACK;
+
+
+BEGIN;
+\echo 'OK, percent= 73'
+CALL new_price_list_from_existing(1, 73);
+SELECT * FROM price_list JOIN price_list_service ON price_list.id = price_list_service.price_list_fk;
+ROLLBACK;
+
+
+BEGIN;
+\echo 'OK, percent = 173'
+CALL new_price_list_from_existing(1, 173);
+SELECT * FROM price_list JOIN price_list_service ON price_list.id = price_list_service.price_list_fk;
+ROLLBACK;
+
+
+BEGIN;
+\echo 'OK, percent = -73'
+CALL new_price_list_from_existing(1, -73);
+SELECT * FROM price_list JOIN price_list_service ON price_list.id = price_list_service.price_list_fk;
+ROLLBACK;
+
+
+\q
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -539,6 +955,18 @@ INSERT INTO contract_payment (id, main_contract_fk, bank_account_fk, sum) VALUES
 SELECT id, sum, main_contract_fk, service_contract_fk FROM contract_payment_sum WHERE contract_payment_fk IN (1, 2, 3, 4, 5, 6) ORDER BY created_at ASC;
 SELECT id, sum, change FROM contract_payment WHERE id IN (1, 2, 3, 4, 5, 6) ORDER BY created_at ASC;
 ROLLBACK;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

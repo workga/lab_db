@@ -11,7 +11,7 @@ docker run --rm -d \
 -e POSTGRES_HOST_AUTH_METHOD=trust \
 postgres
 
-sleep 2
+sleep 1
 
 psql -h localhost -p 6432 -U postgres -f ./lab.sql
 psql -h localhost -p 6432 -U postgres lab_db
