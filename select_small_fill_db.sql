@@ -166,12 +166,6 @@ BEGIN
 		)
 		LOOP
 			begin_date := (now() - random() * (now()  - timestamp '2021-11-01 00:00:00'))::date;
-				-- now() - (
-				-- 	(max_main_contracts_per_client - m) / max_main_contracts_per_client::float
-				-- ) * (
-				-- 	now()  - timestamp '2022-01-01 00:00:00'
-				-- )
-			-- )::date;
 			INSERT INTO main_contract (client_fk, price_list_fk, manager_fk, lawyer_fk, from_date, to_date, text)
 			VALUES (
 				client.id,

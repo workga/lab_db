@@ -58,39 +58,60 @@ GROUP BY client.id;
 CREATE VIEW select2 AS
 select * from crosstab(
   $$
-	SELECT
-		employee.id as "e_id",
-		(month_number.month - 1)*2 + pair.i as "column_number",
+  	WITH month_info AS (
+	 	SELECT
+			employee.id as "e_id",
+			month_number.month as "month",
+			COUNT(DISTINCT main_contract.id) + COUNT(DISTINCT service_contract.id) as "count"
+		FROM employee
+		CROSS JOIN (
+			SELECT month FROM generate_series(0, 12) as gs(month)
+		) as month_number
+		LEFT JOIN main_contract ON (
+			(
+				main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id
+			)
+			AND main_contract.from_date > date_trunc('year', current_date) - interval '1 year' - interval '1 month'
+			AND main_contract.from_date < date_trunc('year', current_date)
+			AND (
+				date_part('year', main_contract.from_date) = date_part('year', current_date) - 1
+				AND date_part('month', main_contract.from_date)::int = month_number.month
+				OR
+				date_part('year', main_contract.from_date) = date_part('year', current_date) - 2
+				AND date_part('month', main_contract.from_date)::int = 12
+				AND month_number.month = 0
+			)
+		)
+		LEFT JOIN service_contract ON (
+			service_contract.main_contract_fk = main_contract.id
+			AND service_contract.created_date < date_trunc('year', current_date)
+		)
+		WHERE employee.employee_role_fk IN (2, 3)
+		GROUP BY employee.id, month_number.month
+  	)
+  	SELECT
+		month_info.e_id as "e_id",
+		(month_info.month - 1)*2 + pair.i as "column_number",
 		(
 			CASE WHEN pair.i = 1
-					THEN COUNT(DISTINCT main_contract.id) + COUNT(DISTINCT service_contract.id)
-				 ELSE
-				 	NULL
+					THEN month_info.count
+				 WHEN month_info_prev.count = 0
+ 					THEN NULL
+ 				 ELSE
+					floor(((month_info.count::float - month_info_prev.count::float) / month_info_prev.count::float)*100)
 			END
 		) as "value"
-	FROM employee
-	CROSS JOIN (
-		SELECT month FROM generate_series(1, 12) as gs(month)
-	) as month_number
-	LEFT JOIN main_contract ON (
-		(
-			main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id
-		)
-		AND main_contract.from_date > date_trunc('year', current_date) - interval '1 year'
-		AND main_contract.from_date < date_trunc('year', current_date)
-		AND date_part('month', main_contract.from_date)::int = month_number.month
-	)
-	LEFT JOIN service_contract ON (
-		service_contract.main_contract_fk = main_contract.id
-		AND service_contract.created_date > date_trunc('year', current_date) - interval '1 year'
-		AND service_contract.created_date < date_trunc('year', current_date)
-	)
+  	FROM month_info
+  	JOIN month_info as month_info_prev ON (
+  		month_info_prev.month = month_info.month - 1
+  		AND month_info_prev.e_id = month_info.e_id
+  	)
 	CROSS JOIN (
 		SELECT i FROM generate_series(1, 2) as gs(i)
 	) as pair
-	WHERE employee.employee_role_fk IN (2, 3)
-	GROUP BY employee.id, month_number.month, pair.i
-	ORDER BY employee.id, month_number.month, pair.i
+	WHERE month_info.month > 0
+	GROUP BY month_info.e_id, month_info.month, pair.i, month_info.count, month_info_prev.count
+	ORDER BY month_info.e_id, month_info.month, pair.i
   $$,
   $$
   	SELECT i from generate_series(1,24) gs(i)

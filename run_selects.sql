@@ -79,28 +79,10 @@ limit 60;
 
 
 
--- \echo 'SELECT 1'
--- SELECT *
--- FROM select1
--- LIMIT 10;
-
-
--- \echo 'SELECT 3'
--- SELECT *
--- FROM select3
--- LIMIT 10;
-
-
--- \echo 'SELECT 4'
--- SELECT *
--- FROM select4
--- LIMIT 10;
-
-
--- \echo 'SELECT 5'
--- SELECT *
--- FROM select5
--- ;
+\echo 'SELECT 1'
+SELECT *
+FROM select1
+LIMIT 10;
 
 \echo 'SELECT 2'
 SELECT *
@@ -108,30 +90,19 @@ FROM select2
 ;
 
 
+\echo 'SELECT 3'
+SELECT *
+FROM select3
+LIMIT 10;
 
 
--- SELECT
--- 	employee.id as "e_id",
--- 	month_number.month as "month",
--- 	COUNT(DISTINCT main_contract.id) + COUNT(DISTINCT service_contract.id) as "count"
--- FROM employee
--- CROSS JOIN (
--- 	SELECT month FROM generate_series(1, 12) as gs(month)
--- ) as month_number
--- LEFT JOIN main_contract ON (
--- 	(
--- 		employee.employee_role_fk = 2 AND main_contract.manager_fk = employee.id 
--- 		OR employee.employee_role_fk = 3 AND main_contract.lawyer_fk = employee.id
--- 	)
--- 	AND main_contract.from_date > date_trunc('year', current_date) - interval '1 year'
--- 	AND main_contract.from_date < date_trunc('year', current_date)
--- 	AND date_part('month', main_contract.from_date)::int = month_number.month
--- )
--- LEFT JOIN service_contract ON (
--- 	service_contract.main_contract_fk = main_contract.id
--- 	AND service_contract.created_date > date_trunc('year', current_date) - interval '1 year'
--- 	AND service_contract.created_date < date_trunc('year', current_date)
--- )
--- WHERE employee.employee_role_fk IN (2, 3)
--- GROUP BY employee.id, month_number.month
--- ORDER BY employee.id, month_number.month
+\echo 'SELECT 4'
+SELECT *
+FROM select4
+LIMIT 10;
+
+
+\echo 'SELECT 5'
+SELECT *
+FROM select5
+;
