@@ -123,8 +123,8 @@ CREATE TABLE price_list_service (
 -- ОСНОВНОЙ ДОГОВОР
 CREATE TABLE main_contract (
 	id SERIAL PRIMARY KEY,
-	lawyer_fk INT REFERENCES employee NOT NULL,
 	manager_fk INT REFERENCES employee NOT NULL,
+	lawyer_fk INT REFERENCES employee NOT NULL,
 	client_fk INT REFERENCES client NOT NULL,
 	price_list_fk INT REFERENCES price_list NOT NULL, -- added
 	from_date DATE NOT NULL,

@@ -1,6 +1,6 @@
 SELECT setseed(0.23);
 
-\set CLIENT_NUMBER 100
+\set CLIENT_NUMBER 1000
 \set EMPLOYEE_NUMBER 100
 \set BANK_NUMBER 50
 \set SERVICE_NUMBER 50
@@ -280,6 +280,40 @@ BEGIN
 	END LOOP;
 END
 $$;
+
+
+
+DO
+LANGUAGE plpgsql
+$$
+DECLARE
+	employee_to_fire RECORD;
+	salary_date DATE;
+BEGIN 
+	FOR employee_to_fire IN (
+		SELECT * FROM employee
+	) LOOP
+		IF random() > 0.3 THEN
+			UPDATE employee
+			SET dismissal_date = employment_date + interval '1 month' + random()*(now() - employment_date::timestamp)
+			WHERE employee.id = employee_to_fire.id;
+		END IF;
+	END LOOP;
+
+	FOR salary_date IN (
+		SELECT d FROM generate_series(timestamp '2010-01-01', timestamp '2023-05-01', interval '1 month') AS gs(d)
+	) LOOP
+		CALL pay_salary(False, salary_date);
+	END LOOP;
+
+	FOR salary_date IN (
+		SELECT d FROM generate_series(timestamp '2010-01-01', timestamp '2023-04-01', interval '1 month') AS gs(d)
+	) LOOP
+		CALL pay_salary(True, salary_date);
+	END LOOP;
+END
+$$;
+
 
 
 COMMIT;

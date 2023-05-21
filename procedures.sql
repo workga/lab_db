@@ -58,11 +58,11 @@ $pay_salary$
 		INSERT INTO salary_payment(sum, date, employee_fk)
 		SELECT employee.salary * 0.5, salary_date, employee.id
 		FROM employee
-		WHERE dismissal_date IS NULL OR dismissal_date > now_date;
+		WHERE (dismissal_date IS NULL OR dismissal_date > salary_date) AND employment_date < salary_date;
 
 
 		RAISE NOTICE 'Total: %', (
-			SELECT sum(salary_payment.sum) FROM salary_payment WHERE salary_payment.date = salary_date
+			SELECT COALESCE(sum(salary_payment.sum), 0) FROM salary_payment WHERE salary_payment.date = salary_date
 		);
 	END;
 $pay_salary$;
