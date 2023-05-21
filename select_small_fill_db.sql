@@ -165,7 +165,7 @@ BEGIN
 			SELECT i FROM generate_series(1, floor(random()*(max_main_contracts_per_client + 1))::int) as gs(i)
 		)
 		LOOP
-			begin_date := (now() - random() * (now()  - timestamp '2022-01-01 00:00:00'))::date;
+			begin_date := (now() - random() * (now()  - timestamp '2021-11-01 00:00:00'))::date;
 				-- now() - (
 				-- 	(max_main_contracts_per_client - m) / max_main_contracts_per_client::float
 				-- ) * (
