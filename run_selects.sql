@@ -82,27 +82,27 @@ limit 60;
 \echo 'SELECT 1'
 SELECT *
 FROM select1
-LIMIT 10;
+LIMIT 20;
 
 \echo 'SELECT 2'
 SELECT *
 FROM select2
-;
+limit 20;
 
 
 \echo 'SELECT 3'
 SELECT *
 FROM select3
-LIMIT 10;
+LIMIT 20;
 
 
 \echo 'SELECT 4'
 SELECT *
 FROM select4
-LIMIT 10;
+LIMIT 20;
 
 
 \echo 'SELECT 5'
 SELECT *
 FROM select5
-;
+LIMIT 20;
