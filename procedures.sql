@@ -120,5 +120,6 @@ $new_price_list_from_existing$
 	END;
 $new_price_list_from_existing$;
 
-COMMIT;
 
+
+COMMIT;

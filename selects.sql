@@ -59,35 +59,47 @@ CREATE VIEW select2 AS
 select * from crosstab(
   $$
   	WITH month_info AS (
-	 	SELECT
-			employee.id as "e_id",
-			month_number.month as "month",
-			COUNT(DISTINCT main_contract.id) + COUNT(DISTINCT service_contract.id) as "count"
-		FROM employee
-		CROSS JOIN (
-			SELECT month FROM generate_series(0, 12) as gs(month)
-		) as month_number
-		LEFT JOIN main_contract ON (
-			(
-				main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id
+			SELECT
+				employee.id as "e_id",
+				month_number.month as "month",
+				COUNT(DISTINCT main_contract.id) + COUNT(DISTINCT service_contract.id) as "count"
+			FROM employee
+			CROSS JOIN (
+				SELECT month FROM generate_series(0, 12) as gs(month)
+			) as month_number
+			LEFT JOIN main_contract ON (
+				(
+					main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id
+				)
+				AND main_contract.from_date >= date_trunc('year', current_date) - interval '1 year' - interval '1 month'
+				AND main_contract.from_date < date_trunc('year', current_date)
+				AND (
+					date_part('year', main_contract.from_date) = date_part('year', current_date) - 1
+					AND date_part('month', main_contract.from_date)::int = month_number.month
+					OR
+					date_part('year', main_contract.from_date) = date_part('year', current_date) - 2
+					AND date_part('month', main_contract.from_date)::int = 12
+					AND month_number.month = 0
+				)
 			)
-			AND main_contract.from_date > date_trunc('year', current_date) - interval '1 year' - interval '1 month'
-			AND main_contract.from_date < date_trunc('year', current_date)
-			AND (
-				date_part('year', main_contract.from_date) = date_part('year', current_date) - 1
-				AND date_part('month', main_contract.from_date)::int = month_number.month
-				OR
-				date_part('year', main_contract.from_date) = date_part('year', current_date) - 2
-				AND date_part('month', main_contract.from_date)::int = 12
-				AND month_number.month = 0
+			LEFT JOIN main_contract as outdated_main_contract ON (
+				outdated_main_contract.manager_fk = employee.id OR outdated_main_contract.lawyer_fk = employee.id
 			)
-		)
-		LEFT JOIN service_contract ON (
-			service_contract.main_contract_fk = main_contract.id
-			AND service_contract.created_date < date_trunc('year', current_date)
-		)
-		WHERE employee.employee_role_fk IN (2, 3)
-		GROUP BY employee.id, month_number.month
+			LEFT JOIN service_contract ON (
+				service_contract.main_contract_fk = outdated_main_contract.id
+				AND service_contract.created_date >= date_trunc('year', current_date) - interval '1 year' - interval '1 month'
+				AND service_contract.created_date < date_trunc('year', current_date)
+				AND (
+					date_part('year', service_contract.created_date) = date_part('year', current_date) - 1
+					AND date_part('month', service_contract.created_date)::int = month_number.month
+					OR
+					date_part('year', service_contract.created_date) = date_part('year', current_date) - 2
+					AND date_part('month', service_contract.created_date)::int = 12
+					AND month_number.month = 0
+				)
+			)
+			WHERE employee.employee_role_fk IN (2, 3)
+			GROUP BY employee.id, month_number.month
   	)
   	SELECT
 		month_info.e_id as "e_id",
@@ -142,33 +154,236 @@ select * from crosstab(
   "Nov %" float,
   "Dec" int,
   "Dec %" float
-);
-
--- as (
---   "employee_id" int,
---   "Jan" int,
---   "Feb" int,
---   "Mar" int,
---   "Apr" int,
---   "May" int,
---   "Jun" int,
---   "Jul" int,
---   "Aug" int,
---   "Sep" int,
---   "Oct" int,
---   "Nov" int,
---   "Dec" int
---  );
-
-	
+)
+ORDER BY employee_id;
 
 
 
 
 
+CREATE VIEW select2_1 AS
+WITH contract_per_month as (
+	SELECT
+		employee.id as "employee_id",
+		month.month as "month",
+		COALESCE(COUNT(DISTINCT main_contract.id), 0) as "number"
+	FROM generate_series(0,12) as month(month)
+	CROSS JOIN employee
+	LEFT JOIN main_contract ON (
+		(main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id)
+		AND main_contract.from_date >= date_trunc('year', current_date) - interval '1 year' + (month.month - 1) * interval '1 month'
+		AND main_contract.from_date < date_trunc('year', current_date) - interval '1 year' +  month.month * interval '1 month'
+	)
+	WHERE employee.employee_role_fk IN (2, 3)
+	GROUP BY employee.id, month.month
+
+	UNION ALL
+
+	SELECT
+		employee.id as "employee_id",
+		month.month as "month",
+		COALESCE(COUNT(DISTINCT service_contract.id), 0) as "number"
+	FROM generate_series(0,12) as month(month)
+	CROSS JOIN employee
+	LEFT JOIN main_contract as outdated_main_contract ON (
+		outdated_main_contract.manager_fk = employee.id OR outdated_main_contract.lawyer_fk = employee.id
+	)
+	LEFT JOIN service_contract ON (
+		service_contract.main_contract_fk = outdated_main_contract.id
+		AND service_contract.created_date >= date_trunc('year', current_date) - interval '1 year' + (month.month - 1) * interval '1 month'
+		AND service_contract.created_date < date_trunc('year', current_date) - interval '1 year' +  month.month * interval '1 month'
+	)
+	WHERE employee.employee_role_fk IN (2, 3)
+	GROUP BY employee.id, month.month
+)
+SELECT
+	employee_id,
+	SUM(n) FILTER (WHERE m = 1) as "Jan",
+	floor((SUM(n) FILTER (WHERE m = 1) - SUM(n) FILTER (WHERE m = 0))::float / NULLIF(SUM(n) FILTER (WHERE m = 0), 0)::float * 100) as "Jan %",
+	SUM(n) FILTER (WHERE m = 2) as "Feb",
+	floor((SUM(n) FILTER (WHERE m = 2) - SUM(n) FILTER (WHERE m = 1))::float / NULLIF(SUM(n) FILTER (WHERE m = 1), 0)::float * 100) as "Feb %",
+	SUM(n) FILTER (WHERE m = 3) as "Mar",
+	floor((SUM(n) FILTER (WHERE m = 3) - SUM(n) FILTER (WHERE m = 2))::float / NULLIF(SUM(n) FILTER (WHERE m = 2), 0)::float * 100) as "Mar %",
+	SUM(n) FILTER (WHERE m = 4) as "Apr",
+	floor((SUM(n) FILTER (WHERE m = 4) - SUM(n) FILTER (WHERE m = 3))::float / NULLIF(SUM(n) FILTER (WHERE m = 3), 0)::float * 100) as "Apr %",
+	SUM(n) FILTER (WHERE m = 5) as "May",
+	floor((SUM(n) FILTER (WHERE m = 5) - SUM(n) FILTER (WHERE m = 4))::float / NULLIF(SUM(n) FILTER (WHERE m = 4), 0)::float * 100) as "May %",
+	SUM(n) FILTER (WHERE m = 6) as "Jun",
+	floor((SUM(n) FILTER (WHERE m = 6) - SUM(n) FILTER (WHERE m = 5))::float / NULLIF(SUM(n) FILTER (WHERE m = 5), 0)::float * 100) as "Jun %",
+	SUM(n) FILTER (WHERE m = 7) as "Jul",
+	floor((SUM(n) FILTER (WHERE m = 7) - SUM(n) FILTER (WHERE m = 6))::float / NULLIF(SUM(n) FILTER (WHERE m = 6), 0)::float * 100) as "Jul %",
+	SUM(n) FILTER (WHERE m = 8) as "Aug",
+	floor((SUM(n) FILTER (WHERE m = 8) - SUM(n) FILTER (WHERE m = 7))::float / NULLIF(SUM(n) FILTER (WHERE m = 7), 0)::float * 100) as "Aug %",
+	SUM(n) FILTER (WHERE m = 9) as "Sep",
+	floor((SUM(n) FILTER (WHERE m = 9) - SUM(n) FILTER (WHERE m = 8))::float / NULLIF(SUM(n) FILTER (WHERE m = 8), 0)::float * 100) as "Sep %",
+	SUM(n) FILTER (WHERE m = 10) as "Oct",
+	floor((SUM(n) FILTER (WHERE m = 10) - SUM(n) FILTER (WHERE m = 9))::float / NULLIF(SUM(n) FILTER (WHERE m = 9), 0)::float * 100) as "Oct %",
+	SUM(n) FILTER (WHERE m = 11) as "Nov",
+	floor((SUM(n) FILTER (WHERE m = 11) - SUM(n) FILTER (WHERE m = 10))::float / NULLIF(SUM(n) FILTER (WHERE m = 10), 0)::float * 100) as "Nov %",
+	SUM(n) FILTER (WHERE m = 12) as "Dec",
+	floor((SUM(n) FILTER (WHERE m = 12) - SUM(n) FILTER (WHERE m = 11))::float / NULLIF(SUM(n) FILTER (WHERE m = 11), 0)::float * 100) as "Dec %"
+FROM contract_per_month AS t(employee_id, m, n)
+GROUP BY employee_id
+ORDER BY employee_id;
 
 
 
+CREATE FUNCTION count_contracts(employee_id int, month int)
+RETURNS int
+LANGUAGE sql
+AS $$
+	SELECT
+		COALESCE(COUNT(DISTINCT main_contract.id), 0) + COALESCE(COUNT(DISTINCT service_contract.id), 0)
+	FROM main_contract as outdated_main_contract
+	LEFT JOIN service_contract ON (
+		(outdated_main_contract.manager_fk = employee_id OR outdated_main_contract.lawyer_fk = employee_id)
+		AND service_contract.main_contract_fk = outdated_main_contract.id
+		AND service_contract.created_date >= date_trunc('year', current_date) - interval '1 year' + (month - 1) * interval '1 month'
+		AND service_contract.created_date < date_trunc('year', current_date) - interval '1 year' +  month * interval '1 month'
+	)
+	LEFT JOIN main_contract ON (
+		(main_contract.manager_fk = employee_id OR main_contract.lawyer_fk = employee_id)
+		AND main_contract.from_date >= date_trunc('year', current_date) - interval '1 year' + (month - 1) * interval '1 month'
+		AND main_contract.from_date < date_trunc('year', current_date) - interval '1 year' +  month * interval '1 month'
+	);
+$$;
+
+CREATE FUNCTION count_growth(employee_id int, month int)
+RETURNS int
+LANGUAGE sql
+AS $$
+	SELECT floor((count_contracts(employee_id, month)::float / NULLIF(count_contracts(employee_id, month - 1), 0)::float - 1) * 100)
+$$;
+
+
+
+CREATE VIEW select2_2 AS
+SELECT
+	employee.id as "employee_id",
+	count_contracts(employee.id, 1) as "Jan",
+	count_growth(employee.id, 1) as "Jan %",
+	count_contracts(employee.id, 2) as "Fab",
+	count_growth(employee.id, 2) as "Fab %",
+	count_contracts(employee.id, 3) as "Mar",
+	count_growth(employee.id, 3) as "Mar %",
+	count_contracts(employee.id, 4) as "Apr",
+	count_growth(employee.id, 4) as "Apr %",
+	count_contracts(employee.id, 5) as "May",
+	count_growth(employee.id, 5) as "May %",
+	count_contracts(employee.id, 6) as "Jun",
+	count_growth(employee.id, 6) as "Jun %",
+	count_contracts(employee.id, 7) as "Jul",
+	count_growth(employee.id, 7) as "Jul %",
+	count_contracts(employee.id, 8) as "Aug",
+	count_growth(employee.id, 8) as "Aug %",
+	count_contracts(employee.id, 9) as "Sep",
+	count_growth(employee.id, 9) as "Sep %",
+	count_contracts(employee.id, 10) as "Oct",
+	count_growth(employee.id, 10) as "Oct %",
+	count_contracts(employee.id, 11) as "Nov",
+	count_growth(employee.id, 11) as "Nov %",
+	count_contracts(employee.id, 12) as "Dec",
+	count_growth(employee.id, 12) as "Dec %"
+FROM employee
+WHERE employee.employee_role_fk IN (2, 3)
+ORDER BY employee.id;
+
+
+
+CREATE VIEW select2_3 AS
+WITH contract_to_month as (
+	SELECT
+		employee.id as "employee_id",
+		main_contract.id as "contract_id",
+		(
+			date_part('month', main_contract.from_date) - 12*(date_part('year', current_date) - date_part('year', main_contract.from_date) - 1)
+		) as "month"
+	FROM employee
+	LEFT JOIN main_contract ON (
+		main_contract.manager_fk = employee.id OR main_contract.lawyer_fk = employee.id
+	)
+	WHERE (
+		employee.employee_role_fk in (2, 3)
+		AND main_contract.from_date >= date_trunc('year', current_date) - interval '1 year' - interval '1 month'
+		AND main_contract.from_date < date_trunc('year', current_date)
+	)
+
+	UNION ALL
+
+
+	SELECT
+		employee.id as "employee_id",
+		service_contract.id as "contract_id",
+		(
+			date_part('month', service_contract.created_date) - 12*(date_part('year', current_date) - date_part('year', service_contract.created_date) - 1)
+		) as "month"
+	FROM employee
+	LEFT JOIN main_contract as outdated_main_contract ON (
+		outdated_main_contract.manager_fk = employee.id OR outdated_main_contract.lawyer_fk = employee.id
+	)
+	LEFT JOIN service_contract ON (
+		service_contract.main_contract_fk = outdated_main_contract.id
+	)
+	WHERE (
+		employee.employee_role_fk in (2, 3)
+		AND service_contract.created_date >= date_trunc('year', current_date) - interval '1 year' - interval '1 month'
+		AND service_contract.created_date < date_trunc('year', current_date)
+	)
+), contract_per_month as (
+	SELECT
+		employee.id as "employee_id",
+		month.month as "m",
+		COALESCE(COUNT(contract_id), 0) as "n"
+	FROM generate_series(0, 12) as month(month)
+	CROSS JOIN employee
+	LEFT JOIN contract_to_month ON (
+		contract_to_month.month = month.month
+		AND contract_to_month.employee_id = employee.id
+	)
+	WHERE employee.employee_role_fk in (2, 3)
+	GROUP BY employee.id, month.month
+)
+SELECT
+	employee_id,
+	SUM(n) FILTER (WHERE m = 1) as "Jan",
+	floor((SUM(n) FILTER (WHERE m = 1) - SUM(n) FILTER (WHERE m = 0))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 0), 0)::float * 100) as "Jan %",
+	SUM(n) FILTER (WHERE m = 2) as "Feb",
+	floor((SUM(n) FILTER (WHERE m = 2) - SUM(n) FILTER (WHERE m = 1))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 1), 0)::float * 100) as "Feb %",
+	SUM(n) FILTER (WHERE m = 3) as "Mar",
+	floor((SUM(n) FILTER (WHERE m = 3) - SUM(n) FILTER (WHERE m = 2))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 2), 0)::float * 100) as "Mar %",
+	SUM(n) FILTER (WHERE m = 4) as "Apr",
+	floor((SUM(n) FILTER (WHERE m = 4) - SUM(n) FILTER (WHERE m = 3))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 3), 0)::float * 100) as "Apr %",
+	SUM(n) FILTER (WHERE m = 5) as "May",
+	floor((SUM(n) FILTER (WHERE m = 5) - SUM(n) FILTER (WHERE m = 4))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 4), 0)::float * 100) as "May %",
+	SUM(n) FILTER (WHERE m = 6) as "Jun",
+	floor((SUM(n) FILTER (WHERE m = 6) - SUM(n) FILTER (WHERE m = 5))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 5), 0)::float * 100) as "Jun %",
+	SUM(n) FILTER (WHERE m = 7) as "Jul",
+	floor((SUM(n) FILTER (WHERE m = 7) - SUM(n) FILTER (WHERE m = 6))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 6), 0)::float * 100) as "Jul %",
+	SUM(n) FILTER (WHERE m = 8) as "Aug",
+	floor((SUM(n) FILTER (WHERE m = 8) - SUM(n) FILTER (WHERE m = 7))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 7), 0)::float * 100) as "Aug %",
+	SUM(n) FILTER (WHERE m = 9) as "Sep",
+	floor((SUM(n) FILTER (WHERE m = 9) - SUM(n) FILTER (WHERE m = 8))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 8), 0)::float * 100) as "Sep %",
+	SUM(n) FILTER (WHERE m = 10) as "Oct",
+	floor((SUM(n) FILTER (WHERE m = 10) - SUM(n) FILTER (WHERE m = 9))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 9), 0)::float * 100) as "Oct %",
+	SUM(n) FILTER (WHERE m = 11) as "Nov",
+	floor((SUM(n) FILTER (WHERE m = 11) - SUM(n) FILTER (WHERE m = 10))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 10), 0)::float * 100) as "Nov %",
+	SUM(n) FILTER (WHERE m = 12) as "Dec",
+	floor((SUM(n) FILTER (WHERE m = 12) - SUM(n) FILTER (WHERE m = 11))::float
+		/ NULLIF(SUM(n) FILTER (WHERE m = 11), 0)::float * 100) as "Dec %"
+FROM contract_per_month
+GROUP BY employee_id
+ORDER BY employee_id;
 
 
 
@@ -236,7 +451,7 @@ GROUP BY client.id, payments_info.paid_sum, payments_info.last_payment_date, pri
 -- Получить рейтинг услуг по популярности. Отчет предоставить в виде:
 -- + Название услуги;
 -- + кол-во договоров, где эта услуга применяется (сортировать по этому полю);
--- среднее число раз включения услуги в договор без учета договоров, где услуга не применялась (значение будет больше или равно 1);
+-- + среднее число раз включения услуги в договор без учета договоров, где услуга не применялась (значение будет больше или равно 1);
 -- + текущая стоимость услуги по самому дорогому прайс-листу;
 -- + текущая стоимость услуги по самому дешевому прайс-листу.
 
